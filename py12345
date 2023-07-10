@@ -1,0 +1,22 @@
+def extract_joined_tables(sql_query):
+    # Regular expression pattern to extract table names or subqueries after JOIN keywords
+    join_pattern = r'\bJOIN\b\s+([\w.]+|\(.*?\))\s+(?:\bon\b|$)'
+
+    # Regular expression pattern to extract table alias from subquery in FROM or JOIN clause
+    alias_pattern = r'\s+AS\s+(\w+)\b'
+    
+    # Extract the main table from the FROM clause
+    from_match = re.search(r'\bFROM\b\s+([\w.]+|\(.*?\))\s+(?:\bon\b|$)', sql_query, re.IGNORECASE)
+    main_table = from_match.group(1) if from_match else None
+    
+    # Extract the joined tables from the JOIN clauses
+    joined_tables = []
+    matches = re.finditer(join_pattern, sql_query, re.IGNORECASE)
+    for match in matches:
+        joined_table = match.group(1)
+        subquery_alias_match = re.search(alias_pattern, joined_table, re.IGNORECASE)
+        if subquery_alias_match:
+            joined_table = subquery_alias_match.group(1)
+        joined_tables.append(joined_table)
+    
+    return main_table, joined_tables
