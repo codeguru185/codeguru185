@@ -1,0 +1,36 @@
+import psycopg2
+
+def insert_new_partitions(t1, t2):
+    try:
+        # Establish connection to Greenplum
+        connection = psycopg2.connect(host='your_greenplum_host', port=5432, dbname='your_dbname', user='your_username', password='your_password')
+        cursor = connection.cursor()
+
+        # Task 1: Select distinct year_month from table t1
+        cursor.execute(f"SELECT DISTINCT year_month FROM {t1}")
+        partitions_t1 = cursor.fetchall()
+
+        # Task 2: Select distinct year_month from table t2
+        cursor.execute(f"SELECT DISTINCT year_month FROM {t2}")
+        partitions_t2 = cursor.fetchall()
+
+        # Task 3: Find the new partitions (partitions in t1 but not in t2)
+        new_partitions = [partition for partition in partitions_t1 if partition not in partitions_t2]
+
+        # Task 4: Frame the INSERT INTO query for new partitions
+        query = f"INSERT INTO {t2} SELECT * FROM {t1} WHERE year_month IN ("
+        query += ",".join([f"'{partition[0]}'" for partition in new_partitions])
+        query += ")"
+
+        # Task 5: Execute the INSERT INTO query
+        cursor.execute(query)
+        connection.commit()
+
+        cursor.close()
+        connection.close()
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+# Usage example
+insert_new_partitions("t1", "t2")
