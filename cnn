@@ -1,0 +1,64 @@
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow import keras
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Generate synthetic data for demonstration
+np.random.seed(42)
+num_records = 100
+
+data = {
+    'TransactionAmount': np.random.rand(num_records) * 500,   # Synthetic transaction amount (between 0 and 500)
+    'Country': np.random.choice(['USA', 'UK', 'Canada'], num_records),
+    'Feature1': np.random.randn(num_records),
+    'Feature2': np.random.randn(num_records),
+    'Feature3': np.random.randn(num_records),
+    'Feature4': np.random.randn(num_records),
+    'Target': np.random.randint(2, size=num_records)   # Binary target (0 or 1)
+}
+
+# Create DataFrame from the generated data
+df = pd.DataFrame(data)
+
+# Separate features (X) and target (y)
+X = df.drop(columns=['Target'])
+y = df['Target']
+
+# Convert categorical 'Country' feature to one-hot encoding
+X = pd.get_dummies(X, columns=['Country'])
+
+# Split the data into training and validation sets
+X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize the features (recommended for neural networks)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_valid = scaler.transform(X_valid)
+
+# Reshape each row as a sequence (1D) with a single channel (feature)
+sequence_length = X_train.shape[1]
+X_train_sequences = X_train.reshape(-1, sequence_length, 1)
+X_valid_sequences = X_valid.reshape(-1, sequence_length, 1)
+
+# Build and Train the CNN Model
+model = keras.Sequential([
+    keras.layers.Conv1D(filters=32, kernel_size=3, activation='relu', input_shape=(sequence_length, 1)),
+    keras.layers.MaxPooling1D(pool_size=2),
+    keras.layers.Flatten(),
+    keras.layers.Dense(64, activation='relu'),
+    keras.layers.Dense(1, activation='sigmoid')  # Binary classification output
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+
+# Train the CNN model
+epochs = 10
+batch_size = 32
+model.fit(X_train_sequences, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_valid_sequences, y_valid))
+
+# Evaluate the CNN Model
+loss, accuracy = model.evaluate(X_valid_sequences, y_valid)
+print(f"Validation Loss: {loss}, Validation Accuracy: {accuracy}")
