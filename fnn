@@ -1,0 +1,60 @@
+from pyspark.sql import SparkSession
+from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler
+from pyspark.ml.classification import MultilayerPerceptronClassifier
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+
+# Create a SparkSession
+spark = SparkSession.builder.appName("CreditCardFraudDetection").getOrCreate()
+
+# Generate synthetic data for demonstration
+# Replace this with your actual data loading and preprocessing code
+from pyspark.sql.functions import rand, randn
+from pyspark.sql.types import DoubleType
+
+np.random.seed(42)
+num_records = 100
+
+data = {
+    'TransactionAmount': np.random.rand(num_records) * 500,
+    'Country': np.random.choice(['USA', 'UK', 'Canada'], num_records),
+    'Feature1': np.random.randn(num_records),
+    'Feature2': np.random.randn(num_records),
+    'Feature3': np.random.randn(num_records),
+    'Feature4': np.random.randn(num_records),
+    'Target': np.random.randint(2, size=num_records)
+}
+
+# Create a DataFrame from the generated data
+df = spark.createDataFrame(pd.DataFrame(data))
+
+# Convert categorical 'Country' feature to numeric using StringIndexer
+string_indexer = StringIndexer(inputCol="Country", outputCol="CountryIndex")
+df = string_indexer.fit(df).transform(df)
+
+# One-hot encode the 'CountryIndex' column
+one_hot_encoder = OneHotEncoder(inputCol="CountryIndex", outputCol="CountryOneHot")
+df = one_hot_encoder.transform(df)
+
+# Assemble all features into a vector column
+feature_cols = ["TransactionAmount", "CountryOneHot", "Feature1", "Feature2", "Feature3", "Feature4"]
+vector_assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+df = vector_assembler.transform(df)
+
+# Split the data into training and validation sets
+train_df, valid_df = df.randomSplit([0.8, 0.2], seed=42)
+
+# Build and Train the Neural Network Model
+layers = [len(feature_cols), 64, 2]  # Input layer size, hidden layer size, output layer size (binary classification)
+mlp = MultilayerPerceptronClassifier(layers=layers, seed=42)
+
+# Train the model
+model = mlp.fit(train_df)
+
+# Evaluate the Model
+evaluator = BinaryClassificationEvaluator(labelCol="Target")
+predictions = model.transform(valid_df)
+auc = evaluator.evaluate(predictions)
+print(f"Area Under ROC Curve (AUC): {auc}")
+
+# Stop the SparkSession
+spark.stop()
