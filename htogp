@@ -1,0 +1,47 @@
+import subprocess
+
+def get_hive_table_schema(schema_name, table_name):
+    # Run the hive -e command to fetch the schema information
+    hive_query = f"SHOW CREATE TABLE {schema_name}.{table_name};"
+    result = subprocess.run(['hive', '-e', hive_query], stdout=subprocess.PIPE, text=True)
+    return result.stdout.strip().split("\n")[-1]
+
+def clean_hive_schema(hive_schema):
+    # Remove extraneous characters like '|' and '~' from the Hive schema
+    cleaned_schema = hive_schema.replace("|", "").replace("~", "")
+    return cleaned_schema
+
+def generate_greenplum_ddl(hive_schema):
+    # Convert the Hive schema to Greenplum format
+    # Replace Hive specific syntax with Greenplum specific syntax
+    # Adjust data types as needed based on your requirements
+    greenplum_ddl = hive_schema.replace("CREATE EXTERNAL TABLE", "CREATE TABLE") \
+                               .replace("ROW FORMAT SERDE", "FORMAT 'CSV'") \
+                               .replace("STORED AS TEXTFILE", "") \
+                               .replace("(", "(") \
+                               .replace(")", ")") \
+                               .replace("STRING", "VARCHAR") \
+                               .replace("DECIMAL", "NUMERIC")
+
+    return greenplum_ddl
+
+def main():
+    # Get inputs from the user
+    schema_name = input("Enter the schema name: ")
+    table_name = input("Enter the table name: ")
+
+    # Get Hive schema using the schema and table name
+    hive_schema = get_hive_table_schema(schema_name, table_name)
+
+    # Clean the Hive schema by removing extraneous characters
+    cleaned_schema = clean_hive_schema(hive_schema)
+
+    # Generate Greenplum format table DDL
+    greenplum_ddl = generate_greenplum_ddl(cleaned_schema)
+
+    # Print the Greenplum format table DDL
+    print("\nGreenplum format table DDL:")
+    print(greenplum_ddl)
+
+if __name__ == "__main__":
+    main()
