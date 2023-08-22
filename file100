@@ -1,0 +1,33 @@
+SELECT
+    r.rolname AS role_name,
+    n.nspname AS schema_name,
+    c.relname AS table_name,
+    CASE
+        WHEN has_table_privilege(r.rolname, n.nspname || '.' || c.relname, 'SELECT') THEN 'SELECT'
+        ELSE NULL
+    END AS select_permission,
+    CASE
+        WHEN has_table_privilege(r.rolname, n.nspname || '.' || c.relname, 'INSERT') THEN 'INSERT'
+        ELSE NULL
+    END AS insert_permission,
+    -- Add more CASE statements for other permissions (UPDATE, DELETE, etc.)
+    -- WHEN has_table_privilege(r.rolname, n.nspname || '.' || c.relname, 'UPDATE') THEN 'UPDATE'
+    -- ELSE NULL
+    -- END AS update_permission,
+    -- ...
+FROM
+    pg_roles r
+CROSS JOIN
+    pg_namespace n
+CROSS JOIN
+    pg_class c
+WHERE
+    r.rolname IN ('role1', 'role2')  -- Replace with the roles you're interested in
+    AND n.nspname NOT LIKE 'pg_%'  -- Exclude system schemas
+    AND n.nspname != 'information_schema'
+    AND c.relnamespace = n.oid
+    AND c.relkind = 'r' -- Only consider tables
+ORDER BY
+    r.rolname,
+    n.nspname,
+    c.relname;
