@@ -22,13 +22,14 @@ def main():
     unzipped_file_path = os.path.join(unzip_file_directory, zip_file_name.replace(".zip", ""))
     with open(unzipped_file_path, 'r') as file:
         first_line = file.readline()
-        column_names = first_line.strip().split(',')
+        column_names = first_line.strip().split('|')  # Assuming pipe-delimited
 
     # Create DDL for Greenplum table
     ddl = create_greenplum_ddl(column_names)
 
     # Write DDL to a file
-    ddl_file_path = os.path.join(ddl_directory, "greenplum_ddl.sql")
+    base_filename = os.path.splitext(zip_file_name)[0]
+    ddl_file_path = os.path.join(ddl_directory, f"{base_filename}_DDL.sql")
     with open(ddl_file_path, 'w') as ddl_file:
         ddl_file.write(ddl)
 
