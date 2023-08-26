@@ -17,10 +17,11 @@ HOST: 127.0.0.1
 PORT: 5432
 GPLOAD:
     
-INPUT:
-   - SOURCE:
+  INPUT:
+    - SOURCE:
       FILE:
          - {data_folder}/{data_file}
+      FORMAT: txt
       DELIMITER: '{field_delimiter}'
       COLUMNS:
 """
@@ -28,12 +29,12 @@ INPUT:
         yaml_content += f"         - {field}: {{TYPE: TEXT}}\n"
 
     yaml_content += f"""
-OUTPUT:
-   - TABLE: {target_schema}.{target_table}
-   MODE: INSERT
+  OUTPUT:
+    - TABLE: {target_schema}.{target_table}
+    MODE: INSERT
 
-EXTERNAL:
-   - SCHEMA: {target_schema}
+  EXTERNAL:
+    - SCHEMA: {target_schema}
 """
 
     # Write YAML content to a file
