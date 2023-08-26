@@ -1,6 +1,6 @@
 import os
 
-def generate_gpload_script(ddl_folder, ddl_file, data_folder, data_file, field_delimiter, target_db, target_schema, target_user):
+def generate_gpload_script(ddl_folder, ddl_file, data_folder, data_file, field_delimiter, target_db, target_schema, target_table, target_user):
     # Read DDL file to get field names
     ddl_file_path = os.path.join(ddl_folder, ddl_file)
     with open(ddl_file_path, 'r') as ddl:
@@ -9,33 +9,32 @@ def generate_gpload_script(ddl_folder, ddl_file, data_folder, data_file, field_d
 
     # Generate YAML content
     yaml_content = f"""\
-    DATABASE: {target_db}
-    USER: {target_user}
-    PASSWORD: 
-    HOST: 127.0.0.1
-    PORT: 5432
+VERSION: 1.0.0.1
+DATABASE: {target_db}
+USER: {target_user}
+PASSWORD: 
+HOST: 127.0.0.1
+PORT: 5432
+GPLOAD:
     
-    INPUT:
-      - SOURCE:
-          FILE:
-            - {data_folder}/{data_file}
-          DELIMITER: '{field_delimiter}'
-        COLUMNS:
-    """
+INPUT:
+   - SOURCE:
+      FILE:
+         - {data_folder}/{data_file}
+      DELIMITER: '{field_delimiter}'
+      COLUMNS:
+"""
     for field in field_names:
-        yaml_content += f"      - {field}\n"
+        yaml_content += f"         - {field}: {{TYPE: TEXT}}\n"
 
     yaml_content += f"""
-    OUTPUT:
-      - TABLE:
-          SCHEMA: {target_schema}
-          NAME: your_output_table_name
-        MODE: INSERT
-        MATCH_COLUMNS: []  # Add match columns if needed
-    
-    EXTERNAL:
-      - SCHEMA: {target_schema}
-    """
+OUTPUT:
+   - TABLE: {target_schema}.{target_table}
+   MODE: INSERT
+
+EXTERNAL:
+   - SCHEMA: {target_schema}
+"""
 
     # Write YAML content to a file
     yaml_file_path = os.path.join(data_folder, f"{data_file}_gpload.yaml")
@@ -44,13 +43,13 @@ def generate_gpload_script(ddl_folder, ddl_file, data_folder, data_file, field_d
 
     # Generate shell script content
     shell_script_content = f"""\
-    #!/bin/bash
+#!/bin/bash
 
-    export GPHOME=/path/to/greenplum
-    source $GPHOME/greenplum_path.sh
+export GPHOME=/path/to/greenplum
+source $GPHOME/greenplum_path.sh
     
-    gpload -f {yaml_file_path}
-    """
+gpload -f {yaml_file_path}
+"""
 
     # Write shell script content to a file
     shell_script_path = os.path.join(data_folder, f"{data_file}_gpload.sh")
@@ -67,9 +66,10 @@ def main():
     field_delimiter = input("Enter Field Delimiter: ")
     target_db = input("Enter Target DB: ")
     target_schema = input("Enter Target Schema: ")
+    target_table = input("Enter Target Table Name: ")
     target_user = input("Enter Target User name: ")
 
-    shell_script_path = generate_gpload_script(ddl_folder, ddl_file, data_folder, data_file, field_delimiter, target_db, target_schema, target_user)
+    shell_script_path = generate_gpload_script(ddl_folder, ddl_file, data_folder, data_file, field_delimiter, target_db, target_schema, target_table, target_user)
 
     print(f"gpload shell script and YAML generated successfully!\nShell Script: {shell_script_path}")
 
