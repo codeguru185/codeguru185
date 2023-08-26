@@ -21,9 +21,9 @@ GPLOAD:
     - SOURCE:
       FILE:
          - {data_folder}/{data_file}
-      FORMAT: txt
-      DELIMITER: '{field_delimiter}'
-      COLUMNS:
+      - FORMAT: text
+      - DELIMITER: '{field_delimiter}'
+      - COLUMNS:
 """
     for field in field_names:
         yaml_content += f"         - {field}: {{TYPE: TEXT}}\n"
@@ -31,7 +31,7 @@ GPLOAD:
     yaml_content += f"""
   OUTPUT:
     - TABLE: {target_schema}.{target_table}
-    MODE: INSERT
+    - MODE: INSERT
 
   EXTERNAL:
     - SCHEMA: {target_schema}
