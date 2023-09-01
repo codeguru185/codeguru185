@@ -1,47 +1,59 @@
 import psycopg2
+from psycopg2 import sql
 
-# Database connection details
-db_config = {
-    "host": "your_host",
-    "database": "your_database",
-    "user": "your_user",
-    "password": "your_password"
+# Database connection parameters
+db_params = {
+    'host': 'your_host',
+    'port': 'your_port',
+    'database': 'your_database',
+    'user': 'your_user',
+    'password': 'your_password'
 }
 
-def check_table_bloat():
-    try:
-        conn = psycopg2.connect(**db_config)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT schemaname, tablename, pg_size_pretty(table_size) AS table_size,
-                   pg_size_pretty(index_size) AS index_size,
-                   pg_size_pretty(total_size) AS total_size
-            FROM (
-                SELECT schemaname, tablename,
-                       pg_total_relation_size('"' || schemaname || '"."' || tablename || '"') AS total_size,
-                       pg_relation_size('"' || schemaname || '"."' || tablename || '"') AS table_size,
-                       pg_indexes_size('"' || schemaname || '"."' || tablename || '"') AS index_size
-                FROM pg_tables
-            ) AS sizes
-            WHERE total_size > 10 * table_size;  -- Adjust the threshold as needed
-        """)
-        
-        bloat_info = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
-        
-        if bloat_info:
-            print("Tables with Excessive Bloat:")
-            for row in bloat_info:
-                print(f"Schema: {row[0]}, Table: {row[1]}")
-                print(f"Table Size: {row[2]}, Index Size: {row[3]}, Total Size: {row[4]}\n")
-        else:
-            print("No excessive table bloat detected.")
-        
-    except Exception as e:
-        print("Error:", e)
+try:
+    # Connect to Greenplum
+    conn = psycopg2.connect(**db_params)
+    cursor = conn.cursor()
 
-if __name__ == "__main__":
-    check_table_bloat()
+    # Step 1: Read data from t_prev
+    cursor.execute("SELECT * FROM t_prev")
+    t_prev_data = cursor.fetchall()
+
+    # Step 2: Read data from t_curr
+    cursor.execute("SELECT * FROM t_curr")
+    t_curr_data = cursor.fetchall()
+
+    # Step 3: Join the tables on id
+    joined_data = []
+    for prev_row in t_prev_data:
+        for curr_row in t_curr_data:
+            if prev_row[0] == curr_row[0]:  # Assuming id is the first column
+                # Step 4: Capture CDC info
+                cdc_info = []
+                for i in range(1, len(prev_row)):  # Assuming the first column is id
+                    if prev_row[i] != curr_row[i]:
+                        cdc_info.append((prev_row[0], i, prev_row[i], curr_row[i]))
+                joined_data.extend(cdc_info)
+    
+    # Step 5: Insert CDC info into t_chg with insert_ts
+    if joined_data:
+        insert_query = sql.SQL("INSERT INTO t_chg (id, field, old_value, new_value, insert_ts) VALUES {}").format(
+            sql.SQL(',').join(map(sql.Literal, joined_data))
+        )
+        cursor.execute(insert_query)
+        conn.commit()
+
+    # Step 6: Capture current timestamp for newly created records
+    new_ids = set(curr_row[0] for curr_row in t_curr_data) - set(prev_row[0] for prev_row in t_prev_data)
+    if new_ids:
+        for new_id in new_ids:
+            cursor.execute("INSERT INTO t_chg (id, field, old_value, new_value, insert_ts) VALUES (%s, NULL, NULL, NULL, current_timestamp)", (new_id,))
+        conn.commit()
+
+except psycopg2.Error as e:
+    print(f"Error: {e}")
+finally:
+    if cursor:
+        cursor.close()
+    if conn:
+        conn.close()
