@@ -3,21 +3,20 @@ import pandas as pd
 # Load the CSV file into a pandas DataFrame
 df = pd.read_csv('your_input_file.csv')  # Replace 'your_input_file.csv' with your CSV file path
 
-# Create a set to store base patterns that should be removed
-base_patterns_to_remove = set()
+# Create a list to store indices of rows to be removed
+rows_to_remove = []
 
-# Iterate through each row to check for base patterns
+# Iterate through each row to check for base values
 for index, row in df.iterrows():
-    base_pattern = None
-    for col in df.columns:
-        value = row[col]
-        if any(value.endswith('_' + str(suffix)) for suffix in range(10)):
-            base_pattern = value.rsplit('_', 1)[0]
-            if base_pattern in df.columns:
-                base_patterns_to_remove.add(base_pattern)
+    value = row[0]  # Assuming a single column in the CSV
+    for other_index, other_row in df.iterrows():
+        other_value = other_row[0]
+        if value != other_value and other_value.startswith(value):
+            rows_to_remove.append(index)
+            break  # No need to continue checking
 
-# Remove columns corresponding to base patterns
-filtered_df = df.drop(columns=list(base_patterns_to_remove))
+# Remove rows with base values
+filtered_df = df.drop(index=rows_to_remove)
 
 # Save the filtered DataFrame to a new CSV file
 filtered_df.to_csv('your_output_file.csv', index=False)  # Replace 'your_output_file.csv' with your desired output file path
