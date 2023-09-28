@@ -4,22 +4,24 @@ import pandas as pd
 df = pd.read_csv('your_input_file.csv')  # Replace 'your_input_file.csv' with your CSV file path
 
 # Identify and remove rows with base patterns and retain others
-base_patterns = set()
+rows_to_remove = set()
 rows_to_keep = []
 
 for index, row in df.iterrows():
     keep_row = True
     for col in df.columns:
-        if col != 'column_name_to_exclude':
-            base_pattern = col.split('_')[0]
-            if base_pattern == row['column_name_to_exclude']:
-                base_patterns.add(base_pattern)
+        value = row[col]
+        if any(value.endswith('_' + str(suffix)) for suffix in range(10)):
+            base_pattern = value.rsplit('_', 1)[0]
+            if base_pattern in df.columns:
+                rows_to_remove.add(base_pattern)
                 keep_row = False
                 break
     if keep_row:
         rows_to_keep.append(index)
 
-filtered_df = df.iloc[rows_to_keep]
+# Remove the base pattern columns from the DataFrame
+filtered_df = df.drop(columns=list(rows_to_remove))
 
 # Save the filtered DataFrame to a new CSV file
 filtered_df.to_csv('your_output_file.csv', index=False)  # Replace 'your_output_file.csv' with your desired output file path
