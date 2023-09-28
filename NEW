@@ -20,12 +20,9 @@ for index, row in df.iterrows():
             break  # No need to continue checking
     
     if is_base:
-        removed_df = removed_df.append(row)
+        removed_df = pd.concat([removed_df, row.to_frame().T], ignore_index=True)
     else:
-        filtered_df = filtered_df.append(row)
+        filtered_df = pd.concat([filtered_df, row.to_frame().T], ignore_index=True)
 
 # Save the filtered DataFrame to a new CSV file
-filtered_df.to_csv('your_output_file.csv', index=False)  # Replace 'your_output_file.csv' with your desired output file path
-
-# Save the removed records to 'removed.csv'
-removed_df.to_csv('removed.csv', index=False)  # Save removed records to 'removed.csv' file
+filtered_df.to_csv('your_output_file.csv', index=False)  # Replace
