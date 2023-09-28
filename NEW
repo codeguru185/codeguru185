@@ -1,7 +1,25 @@
-SELECT column_name
-FROM X
-WHERE column_name NOT IN (
-    SELECT DISTINCT ON (substring(column_name from '^(.*)_')) substring(column_name from '^(.*)_')
-    FROM X
-    WHERE column_name LIKE '%_%'
-);
+import pandas as pd
+
+# Load the CSV file into a pandas DataFrame
+df = pd.read_csv('your_input_file.csv')  # Replace 'your_input_file.csv' with your CSV file path
+
+# Identify and remove rows with base patterns and retain others
+base_patterns = set()
+rows_to_keep = []
+
+for index, row in df.iterrows():
+    keep_row = True
+    for col in df.columns:
+        if col != 'column_name_to_exclude':
+            base_pattern = col.split('_')[0]
+            if base_pattern == row['column_name_to_exclude']:
+                base_patterns.add(base_pattern)
+                keep_row = False
+                break
+    if keep_row:
+        rows_to_keep.append(index)
+
+filtered_df = df.iloc[rows_to_keep]
+
+# Save the filtered DataFrame to a new CSV file
+filtered_df.to_csv('your_output_file.csv', index=False)  # Replace 'your_output_file.csv' with your desired output file path
