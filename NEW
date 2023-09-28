@@ -1,62 +1,7 @@
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix, classification_report
-
-class CreditCardFraudDetection:
-    def __init__(self, training_data_path, num_features):
-        # Load the training data
-        training_data = pd.read_csv(training_data_path)
-
-        # Split the training data into features and labels
-        X_train = training_data.iloc[:, :num_features].values
-        y_train = training_data.iloc[:, num_features].values
-
-        # Feature scaling
-        sc = StandardScaler()
-        X_train = sc.fit_transform(X_train)
-
-        # Build the neural network model
-        self.model = Sequential()
-        self.model.add(Dense(128, input_dim=num_features, activation='relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Dropout(0.5))
-        self.model.add(Dense(64, activation='relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Dropout(0.5))
-        self.model.add(Dense(1, activation='sigmoid'))
-
-        # Compile the model
-        self.model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-        # Train the model with a validation split
-        self.model.fit(X_train, y_train, epochs=20, batch_size=128, validation_split=0.2)
-
-    def predict(self, X_test):
-        # Feature scaling for the test data
-        sc = StandardScaler()
-        X_test = sc.fit_transform(X_test)
-
-        # Make predictions
-        y_pred = (self.model.predict(X_test) > 0.5).astype(int)
-
-        # Return the predictions
-        return y_pred
-
-# Example usage:
-training_data_path = 'training_data.csv'  # Replace with your training dataset path
-num_features = 30  # Number of features in your dataset
-
-# Load your separate test data (X_test)
-X_test = pd.read_csv('test_data.csv').values  # Replace 'test_data.csv' with your test dataset path
-
-fraud_detection = CreditCardFraudDetection(training_data_path, num_features)
-
-# Make predictions on the separate test data
-y_pred = fraud_detection.predict(X_test)
-
-# Print the predictions
-print(y_pred)
+SELECT column_name
+FROM X
+WHERE column_name NOT IN (
+    SELECT DISTINCT ON (substring(column_name from '^(.*)_')) substring(column_name from '^(.*)_')
+    FROM X
+    WHERE column_name LIKE '%_%'
+);
