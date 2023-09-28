@@ -3,20 +3,29 @@ import pandas as pd
 # Load the CSV file into a pandas DataFrame
 df = pd.read_csv('your_input_file.csv')  # Replace 'your_input_file.csv' with your CSV file path
 
-# Create a list to store indices of rows to be removed
-rows_to_remove = []
+# Create DataFrames to store the filtered and removed records
+filtered_df = pd.DataFrame(columns=df.columns)
+removed_df = pd.DataFrame(columns=df.columns)
 
 # Iterate through each row to check for base values
 for index, row in df.iterrows():
     value = row[0]  # Assuming a single column in the CSV
+    is_base = False
+    
     for other_index, other_row in df.iterrows():
         other_value = other_row[0]
+        
         if value != other_value and other_value.startswith(value):
-            rows_to_remove.append(index)
+            is_base = True
             break  # No need to continue checking
-
-# Remove rows with base values
-filtered_df = df.drop(index=rows_to_remove)
+    
+    if is_base:
+        removed_df = removed_df.append(row)
+    else:
+        filtered_df = filtered_df.append(row)
 
 # Save the filtered DataFrame to a new CSV file
 filtered_df.to_csv('your_output_file.csv', index=False)  # Replace 'your_output_file.csv' with your desired output file path
+
+# Save the removed records to 'removed.csv'
+removed_df.to_csv('removed.csv', index=False)  # Save removed records to 'removed.csv' file
