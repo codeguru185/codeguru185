@@ -1,35 +1,11 @@
 import pandas as pd
-import re
+from pandas_profiling import ProfileReport
 
-# Load the CSV file into a pandas DataFrame
-df = pd.read_csv('your_input_file.csv')  # Replace 'your_input_file.csv' with your CSV file path
+# Load the dataset into a Pandas DataFrame
+df = pd.read_csv('data.csv')
 
-# Create DataFrames to store the filtered and removed records
-filtered_df = pd.DataFrame(columns=df.columns)
-removed_df = pd.DataFrame(columns=df.columns)
+# Generate a profile report
+profile = ProfileReport(df)
 
-# Iterate through each row to check for base patterns
-for index, row in df.iterrows():
-    base_pattern = row[0]  # Assuming a single column in the CSV
-    has_derived = False
-    
-    # Check for derived patterns with any suffix (e.g., "_x" or "_null")
-    pattern_match = re.compile(re.escape(base_pattern) + r'_[a-zA-Z0-9]*|' + re.escape(base_pattern) + r'_null', re.IGNORECASE)
-    
-    for other_index, other_row in df.iterrows():
-        if other_index != index:
-            other_value = other_row[0]
-            if pattern_match.fullmatch(other_value):
-                has_derived = True
-                break  # No need to continue checking
-    
-    if has_derived:
-        removed_df = pd.concat([removed_df, row.to_frame().T], ignore_index=True)
-    else:
-        filtered_df = pd.concat([filtered_df, row.to_frame().T], ignore_index=True)
-
-# Save the filtered DataFrame to 'filtered.csv'
-filtered_df.to_csv('filtered.csv', index=False)  # Save filtered records to 'filtered.csv' file
-
-# Save the removed DataFrame to 'removed.csv'
-removed_df.to_csv('removed.csv', index=False)  # Save removed records to 'removed.csv' file
+# Save the report to a file
+profile.to_file('profile_report.html'
