@@ -1,11 +1,24 @@
 import pandas as pd
 from pandas_profiling import ProfileReport
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
 
-# Load the dataset into a Pandas DataFrame
-df = pd.read_csv('data.csv')
+# Load your dataset
+data = {
+    'Age': [25, 30, 35, 22, 40],
+    'Gender': ['Male', 'Female', 'Male', 'Female', 'Male'],
+    'Income': [50000, 60000, 75000, None, 80000],
+    'Label': [1, 0, 1, 0, 1]
+}
 
-# Generate a profile report
-profile = ProfileReport(df)
+df = pd.DataFrame(data)
 
-# Save the report to a file
-profile.to_file('profile_report.html'
+# Perform data profiling with Pandas Profiling
+profile = ProfileReport(df, title='Data Profiling Report', explorative=True)
+
+# Generate the profiling report
+profile.to_file('data_profile_report.html')
+
+# Identify numerical and categorical variables
+numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
+categorical_cols = df.select_dtypes(exclude=['number']).columns.tolist()
