@@ -1,24 +1,20 @@
-import pandas as pd
-from pandas_profiling import ProfileReport
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.model_selection import train_test_split
+import csv
 
-# Load your dataset
-data = {
-    'Age': [25, 30, 35, 22, 40],
-    'Gender': ['Male', 'Female', 'Male', 'Female', 'Male'],
-    'Income': [50000, 60000, 75000, None, 80000],
-    'Label': [1, 0, 1, 0, 1]
-}
+# Read list1 from a file
+list1 = []
+with open('list1.csv', 'r', newline='') as file:
+    reader = csv.reader(file)
+    for row in reader:
+        list1.append(row[0])
 
-df = pd.DataFrame(data)
+# Read list2 from a file
+list2 = []
+with open('list2.csv', 'r', newline='') as file:
+    reader = csv.reader(file)
+    for row in reader:
+        list2.append(row[0])
 
-# Perform data profiling with Pandas Profiling
-profile = ProfileReport(df, title='Data Profiling Report', explorative=True)
-
-# Generate the profiling report
-profile.to_file('data_profile_report.html')
-
-# Identify numerical and categorical variables
-numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
-categorical_cols = df.select_dtypes(exclude=['number']).columns.tolist()
+# Iterate through list2 and print lines that don't start with any name from list1
+for line in list2:
+    if not any(line.startswith(name) for name in list1):
+        print(line)
