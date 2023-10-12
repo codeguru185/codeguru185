@@ -1,20 +1,32 @@
-import csv
+import boto3
+from botocore.exceptions import NoCredentialsError
 
-# Read list1 from a file
-list1 = []
-with open('list1.csv', 'r', newline='') as file:
-    reader = csv.reader(file)
-    for row in reader:
-        list1.append(row[0])
+# Replace these values with your AWS access key, secret key, and S3 bucket name
+aws_access_key = 'YOUR_ACCESS_KEY'
+aws_secret_key = 'YOUR_SECRET_KEY'
+bucket_name = 'your-s3-bucket-name'
 
-# Read list2 from a file
-list2 = []
-with open('list2.csv', 'r', newline='') as file:
-    reader = csv.reader(file)
-    for row in reader:
-        list2.append(row[0])
+# Specify the local file you want to upload
+local_file_path = 'path/to/your/local/file.txt'
 
-# Iterate through list2 and print lines that don't start with any name from list1
-for line in list2:
-    if not any(line.startswith(name) for name in list1):
-        print(line)
+# Specify the desired S3 key (object key) for the uploaded file
+s3_key = 'your-s3-key/file.txt'
+
+def upload_to_s3(local_file, s3_key, bucket_name, aws_access_key, aws_secret_key):
+    try:
+        # Create a session and connect to S3
+        session = boto3.Session(
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+        )
+        s3 = session.client('s3')
+
+        # Upload the local file to S3
+        s3.upload_file(local_file, bucket_name, s3_key)
+        print(f'File "{local_file}" uploaded to S3 as "{s3_key}"')
+
+    except NoCredentialsError:
+        print('AWS credentials not available or incorrect.')
+
+if __name__ == "__main__":
+    upload_to_s3(local_file_path, s3_key, bucket_name, aws_access_key, aws_secret_key)
