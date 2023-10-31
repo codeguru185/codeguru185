@@ -1,45 +1,52 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, countDistinct
+from pyspark.sql.types import DateType, TimestampType, DoubleType
 
 # Create a Spark session
 spark = SparkSession.builder.appName("FieldNamesCategorization").getOrCreate()
 
 # Sample DataFrame (Replace this with your own DataFrame)
 data = [
-    ('A', 'X', 100, 50, 5, 1.2, '2022-01-01', '2022-01-01 12:00:00'),
-    ('B', 'Y', 200, 75, 10, 2.5, '2022-01-02', '2022-01-02 14:30:00'),
-    ('A', 'Z', 300, 120, 15, 3.8, '2022-01-03', '2022-01-03 10:15:00'),
-    ('C', 'X', 400, 80, 20, 4.0, '2022-01-04', '2022-01-04 16:45:00'),
-    ('B', 'Y', 500, 90, 25, 5.5, '2022-01-05', '2022-01-05 08:30:00')
+    ('A', 'X', '2022-01-01', '2022-01-01 12:00:00', 100, 50, 5, 1.2, 1.234),
+    ('B', 'Y', '2022-01-02', '2022-01-02 14:30:00', 200, 75, 10, 2.5, 2.345),
+    ('A', 'Z', '2022-01-03', '2022-01-03 10:15:00', 300, 120, 15, 3.8, 3.456),
+    ('C', 'X', '2022-01-04', '2022-01-04 16:45:00', 400, 80, 20, 4.0, 4.567),
+    ('B', 'Y', '2022-01-05', '2022-01-05 08:30:00', 500, 90, 25, 5.5, 5.678)
 ]
 
-columns = ["Category1", "Category2", "Amount1", "Amount2", "Numeric1", "Numeric2", "Date1", "Timestamp1"]
+columns = ["Category1", "Category2", "Date1", "Timestamp1", "Amount1", "Amount2", "Numeric1", "Numeric2", "Decimal1"]
 
 df = spark.createDataFrame(data, columns)
 
-# Categorize columns based on criteria
-categorical_less_than_20 = [col for col in df.columns if df.select(col).distinct().count() < 20 and col != "Amount1" and col != "Amount2"]
-categorical_more_than_20 = [col for col in df.columns if df.select(col).distinct().count() >= 20 and col != "Amount1" and col != "Amount2"]
-amount_variables = ["Amount1", "Amount2"]
-date_timestamp_variables = [col for col in df.columns if df.schema[col].dataType.simpleString() in ["date", "timestamp"]]
-general_numerical_variables = [col for col in df.columns if col not in categorical_less_than_20 and col not in categorical_more_than_20 and col not in amount_variables and col not in date_timestamp_variables]
+# Define a function to determine data characteristics
+def determine_column_category(column):
+    unique_count = df.select(column).distinct().count()
+    if unique_count < 10:
+        return "Categorical_Less_Than_10"
+    elif 10 <= unique_count <= 30:
+        return "Categorical_10_to_30"
+    elif unique_count > 30:
+        return "Categorical_More_Than_30"
+    elif df.schema[column].dataType == DateType():
+        return "Date_Columns"
+    elif df.schema[column].dataType == TimestampType():
+        return "Timestamp_Columns"
+    elif df.schema[column].dataType == DoubleType() and df.select(column).cast("string").rlike(r'^\d+\.\d{2}$'):
+        return "Amount_Columns"
+    elif df.schema[column].dataType in [DoubleType(), DoubleType()]:
+        return "Numeric_Columns"
+    else:
+        return "Other"
 
-# Define custom categories based on your feature engineering needs
-# Replace 'CustomCategory' with meaningful names for other categories
-custom_category = ["Numeric1", "Numeric2"]
-
-# Save field names to CSV files
-categories = {
-    "Categorical_Less_Than_20.csv": categorical_less_than_20,
-    "Categorical_More_Than_20.csv": categorical_more_than_20,
-    "Amount_Variables.csv": amount_variables,
-    "Date_Timestamp_Variables.csv": date_timestamp_variables,
-    "General_Numerical_Variables.csv": general_numerical_variables,
-    "Custom_Category.csv": custom_category
+# Categorize columns based on data characteristics
+column_categories = {
+    determine_column_category(col): col for col in df.columns
 }
 
-for filename, field_names in categories.items():
-    with open(filename, "w") as file:
-        file.write("\n".join(field_names)
+# Save field names to CSV files based on categories
+for category, column_name in column_categories.items():
+    with open(category + ".csv", "w") as file:
+        file.write(column_name)
 
 # Stop the Spark session
 spark.stop()
