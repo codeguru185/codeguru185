@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, countDistinct
+from pyspark.sql.functions import col, when
 from pyspark.sql.types import DateType, TimestampType, DoubleType
 
 # Create a Spark session
@@ -18,35 +18,20 @@ columns = ["Category1", "Category2", "Date1", "Timestamp1", "Amount1", "Amount2"
 
 df = spark.createDataFrame(data, columns)
 
-# Define a function to determine data characteristics
-def determine_column_category(column):
-    unique_count = df.select(column).distinct().count()
-    if unique_count < 10:
-        return "Categorical_Less_Than_10"
-    elif 10 <= unique_count <= 30:
-        return "Categorical_10_to_30"
-    elif unique_count > 30:
-        return "Categorical_More_Than_30"
-    elif df.schema[column].dataType == DateType():
-        return "Date_Columns"
-    elif df.schema[column].dataType == TimestampType():
-        return "Timestamp_Columns"
-    elif df.schema[column].dataType == DoubleType() and df.select(column).cast("string").rlike(r'^\d+\.\d{2}$'):
-        return "Amount_Columns"
-    elif df.schema[column].dataType in [DoubleType(), DoubleType()]:
-        return "Numeric_Columns"
-    else:
-        return "Other"
+# Define a function to determine data type
+def infer_data_type(column):
+    return when(col(column).cast(DateType()).isNotNull(), "Date") \
+        .when(col(column).cast(TimestampType()).isNotNull(), "Timestamp") \
+        .when(col(column).cast(DoubleType()).isNotNull(), "Double") \
+        .when(col(column).cast("string").rlike(r'^\d+\.\d{2}$'), "Amount") \
+        .otherwise("Other")
 
-# Categorize columns based on data characteristics
-column_categories = {
-    determine_column_category(col): col for col in df.columns
-}
+# Categorize columns based on data type
+for column in df.columns:
+    df = df.withColumn(column + "_Type", infer_data_type(column))
 
-# Save field names to CSV files based on categories
-for category, column_name in column_categories.items():
-    with open(category + ".csv", "w") as file:
-        file.write(column_name)
+# Drop the original data type columns
+df = df.drop(*df.columns[-len(columns):])
 
-# Stop the Spark session
-spark.stop()
+# Show the resulting DataFrame
+df.show()
