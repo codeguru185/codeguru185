@@ -1,32 +1,45 @@
-import boto3
-from botocore.exceptions import NoCredentialsError
+from pyspark.sql import SparkSession
 
-# Replace these values with your AWS access key, secret key, and S3 bucket name
-aws_access_key = 'YOUR_ACCESS_KEY'
-aws_secret_key = 'YOUR_SECRET_KEY'
-bucket_name = 'your-s3-bucket-name'
+# Create a Spark session
+spark = SparkSession.builder.appName("FieldNamesCategorization").getOrCreate()
 
-# Specify the local file you want to upload
-local_file_path = 'path/to/your/local/file.txt'
+# Sample DataFrame (Replace this with your own DataFrame)
+data = [
+    ('A', 'X', 100, 50, 5, 1.2, '2022-01-01', '2022-01-01 12:00:00'),
+    ('B', 'Y', 200, 75, 10, 2.5, '2022-01-02', '2022-01-02 14:30:00'),
+    ('A', 'Z', 300, 120, 15, 3.8, '2022-01-03', '2022-01-03 10:15:00'),
+    ('C', 'X', 400, 80, 20, 4.0, '2022-01-04', '2022-01-04 16:45:00'),
+    ('B', 'Y', 500, 90, 25, 5.5, '2022-01-05', '2022-01-05 08:30:00')
+]
 
-# Specify the desired S3 key (object key) for the uploaded file
-s3_key = 'your-s3-key/file.txt'
+columns = ["Category1", "Category2", "Amount1", "Amount2", "Numeric1", "Numeric2", "Date1", "Timestamp1"]
 
-def upload_to_s3(local_file, s3_key, bucket_name, aws_access_key, aws_secret_key):
-    try:
-        # Create a session and connect to S3
-        session = boto3.Session(
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-        )
-        s3 = session.client('s3')
+df = spark.createDataFrame(data, columns)
 
-        # Upload the local file to S3
-        s3.upload_file(local_file, bucket_name, s3_key)
-        print(f'File "{local_file}" uploaded to S3 as "{s3_key}"')
+# Categorize columns based on criteria
+categorical_less_than_20 = [col for col in df.columns if df.select(col).distinct().count() < 20 and col != "Amount1" and col != "Amount2"]
+categorical_more_than_20 = [col for col in df.columns if df.select(col).distinct().count() >= 20 and col != "Amount1" and col != "Amount2"]
+amount_variables = ["Amount1", "Amount2"]
+date_timestamp_variables = [col for col in df.columns if df.schema[col].dataType.simpleString() in ["date", "timestamp"]]
+general_numerical_variables = [col for col in df.columns if col not in categorical_less_than_20 and col not in categorical_more_than_20 and col not in amount_variables and col not in date_timestamp_variables]
 
-    except NoCredentialsError:
-        print('AWS credentials not available or incorrect.')
+# Define custom categories based on your feature engineering needs
+# Replace 'CustomCategory' with meaningful names for other categories
+custom_category = ["Numeric1", "Numeric2"]
 
-if __name__ == "__main__":
-    upload_to_s3(local_file_path, s3_key, bucket_name, aws_access_key, aws_secret_key)
+# Save field names to CSV files
+categories = {
+    "Categorical_Less_Than_20.csv": categorical_less_than_20,
+    "Categorical_More_Than_20.csv": categorical_more_than_20,
+    "Amount_Variables.csv": amount_variables,
+    "Date_Timestamp_Variables.csv": date_timestamp_variables,
+    "General_Numerical_Variables.csv": general_numerical_variables,
+    "Custom_Category.csv": custom_category
+}
+
+for filename, field_names in categories.items():
+    with open(filename, "w") as file:
+        file.write("\n".join(field_names)
+
+# Stop the Spark session
+spark.stop()
