@@ -1,37 +1,75 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
-from pyspark.sql.types import DateType, TimestampType, DoubleType
-
-# Create a Spark session
-spark = SparkSession.builder.appName("FieldNamesCategorization").getOrCreate()
+import pandas as pd
+import numpy as np
+from statistics import try_int, try_float
 
 # Sample DataFrame (Replace this with your own DataFrame)
-data = [
-    ('A', 'X', '2022-01-01', '2022-01-01 12:00:00', 100, 50, 5, 1.2, 1.234),
-    ('B', 'Y', '2022-01-02', '2022-01-02 14:30:00', 200, 75, 10, 2.5, 2.345),
-    ('A', 'Z', '2022-01-03', '2022-01-03 10:15:00', 300, 120, 15, 3.8, 3.456),
-    ('C', 'X', '2022-01-04', '2022-01-04 16:45:00', 400, 80, 20, 4.0, 4.567),
-    ('B', 'Y', '2022-01-05', '2022-01-05 08:30:00', 500, 90, 25, 5.5, 5.678)
-]
+data = {
+    'Category1': ['A', 'B', 'A', 'C', 'B'],
+    'Category2': ['X', 'Y', 'Z', 'X', 'Y'],
+    'Date1': ['2022-01-01', '2022-01-02', '2022-01-03', '2022-01-04', '2022-01-05'],
+    'Timestamp1': ['2022-01-01 12:00:00', '2022-01-02 14:30:00', '2022-01-03 10:15:00', '2022-01-04 16:45:00', '2022-01-05 08:30:00'],
+    'Amount1': [100, 200, 300, 400, 500],
+    'Amount2': [50, 75, 120, 80, 90],
+    'Numeric1': [5, 10, 15, 20, 25],
+    'Numeric2': [1.2, 2.5, 3.8, 4.0, 5.5],
+    'Decimal1': [1.234, 2.345, 3.456, 4.567, 5.678]
+}
 
-columns = ["Category1", "Category2", "Date1", "Timestamp1", "Amount1", "Amount2", "Numeric1", "Numeric2", "Decimal1"]
+df = pd.DataFrame(data)
 
-df = spark.createDataFrame(data, columns)
+# Function to infer data types based on actual data
+def infer_data_type(series):
+    try:
+        # Attempt to convert to integer
+        values = [try_int(val) for val in series]
+        if all(val is not None for val in values):
+            return 'int'
+        
+        # Attempt to convert to float
+        values = [try_float(val) for val in series]
+        if all(val is not None for val in values):
+            return 'float'
+        
+        # Check for date format
+        if all(pd.to_datetime(series, errors='coerce').notna()):
+            return 'date'
+        
+        # Check for timestamp format
+        if all(pd.to_datetime(series, errors='coerce').notna()) and ' ' in series[0]:
+            return 'timestamp'
+        
+        # Check for numeric with 2 decimal places
+        if all(isinstance(val, (float, int)) and str(val).count('.') == 1 and len(str(val).split('.')[1]) == 2 for val in series):
+            return 'amount'
+        
+        # Default to string
+        return 'string'
+    except:
+        # Default to string on any error
+        return 'string'
 
-# Define a function to determine data type
-def infer_data_type(column):
-    return when(col(column).cast(DateType()).isNotNull(), "Date") \
-        .when(col(column).cast(TimestampType()).isNotNull(), "Timestamp") \
-        .when(col(column).cast(DoubleType()).isNotNull(), "Double") \
-        .when(col(column).cast("string").rlike(r'^\d+\.\d{2}$'), "Amount") \
-        .otherwise("Other")
+# Infer data types for each column based on the actual data
+data_types = {col: infer_data_type(df[col]) for col in df.columns}
 
-# Categorize columns based on data type
-for column in df.columns:
-    df = df.withColumn(column + "_Type", infer_data_type(column))
+# Create lists of CSV files based on data type categories
+categorical_less_than_10 = [col for col, data_type in data_types.items() if data_type == 'string' and df[col].nunique() < 10]
+categorical_10_to_20 = [col for col, data_type in data_types.items() if data_type == 'string' and 10 <= df[col].nunique() <= 20]
+numerical_variables = [col for col, data_type in data_types.items() if data_type in ('int', 'float')]
+amount_variables = [col for col, data_type in data_types.items() if data_type == 'amount']
+date_variables = [col for col, data_type in data_types.items() if data_type == 'date']
+timestamp_variables = [col for col, data_type in data_types.items() if data_type == 'timestamp']
 
-# Drop the original data type columns
-df = df.drop(*df.columns[-len(columns):])
+# Define the file names for each category
+file_names = {
+    'categorical_less_than_10.csv': categorical_less_than_10,
+    'categorical_10_to_20.csv': categorical_10_to_20,
+    'numerical_variables.csv': numerical_variables,
+    'amount_variables.csv': amount_variables,
+    'date_variables.csv': date_variables,
+    'timestamp_variables.csv': timestamp_variables
+}
 
-# Show the resulting DataFrame
-df.show()
+# Save the field names to CSV files
+for file_name, field_names in file_names.items():
+    with open(file_name, 'w') as file:
+        file.write('\n'.join(field_names))
