@@ -1,31 +1,18 @@
+import pandas as pd
 import os
-from bs4 import BeautifulSoup
 
-# Directory containing HTML files
-html_folder = "your_html_folder_path"
+def split_large_csv(input_csv, output_directory, num_parts):
+    # Ensure the output directory exists
+    os.makedirs(output_directory, exist_ok=True)
 
-# Initialize a dictionary to store the results
-distinct_values = {}
+    # Open the input CSV file in chunks
+    for i, chunk in enumerate(pd.read_csv(input_csv, chunksize=num_parts)):
+        part_file = os.path.join(output_directory, f'part_{i + 1}.csv')
+        chunk.to_csv(part_file, index=False)
 
-# Function to extract 'Distinct' values from an HTML file
-def extract_distinct_value(file_path):
-    with open(file_path, "r", encoding="utf-8") as file:
-        content = file.read()
-        soup = BeautifulSoup(content, "html.parser")
-        # Find the label with the text 'Distinct'
-        label = soup.find("label", text="Distinct")
-        if label:
-            # Extract the value associated with the label
-            distinct_values[file_path] = label.find_next("span").get_text()
+if __name__ == "__main__":
+    input_csv = 'your_large_input_file.csv'  # Replace with your input CSV file path
+    output_directory = 'output_parts'         # Replace with the output directory path
+    num_parts = 4                            # Number of parts to split the CSV file into
 
-# Iterate through HTML files in the folder
-for filename in os.listdir(html_folder):
-    if filename.endswith(".html"):
-        file_path = os.path.join(html_folder, filename)
-        extract_distinct_value(file_path)
-
-# Print or use the distinct values
-for file_path, value in distinct_values.items():
-    print(f"File: {file_path}\nDistinct Value: {value}\n")
-
-# Optionally, you can store the values in a file or process them further.
+    split_large_csv(input_csv, output_directory, num_parts)
