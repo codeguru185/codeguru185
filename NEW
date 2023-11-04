@@ -1,18 +1,68 @@
+import numpy as np
 import pandas as pd
-import os
+import tensorflow as tf
+from tensorflow import keras
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
+from category_encoders import BinaryEncoder  # For binary encoding
+from sklearn.preprocessing import OneHotEncoder  # For one-hot encoding
 
-def split_large_csv(input_csv, output_directory, num_parts):
-    # Ensure the output directory exists
-    os.makedirs(output_directory, exist_ok=True)
+# Load your training dataset from a CSV file
+# Replace 'train_dataset.csv' with the path to your training dataset file
+train_data = pd.read_csv('train_dataset.csv')
 
-    # Open the input CSV file in chunks
-    for i, chunk in enumerate(pd.read_csv(input_csv, chunksize=num_parts)):
-        part_file = os.path.join(output_directory, f'part_{i + 1}.csv')
-        chunk.to_csv(part_file, index=False)
+# Load your test dataset from a CSV file
+# Replace 'test_dataset.csv' with the path to your test dataset file
+test_data = pd.read_csv('test_dataset.csv')
 
-if __name__ == "__main__":
-    input_csv = 'your_large_input_file.csv'  # Replace with your input CSV file path
-    output_directory = 'output_parts'         # Replace with the output directory path
-    num_parts = 4                            # Number of parts to split the CSV file into
+# Separate features and labels for training data
+X_train = train_data.drop('Class', axis=1)
+y_train = train_data['Class']
 
-    split_large_csv(input_csv, output_directory, num_parts)
+# Separate features and labels for test data
+X_test = test_data.drop('Class', axis=1)
+y_test = test_data['Class']
+
+# Define which columns should be one-hot encoded and which should be binary encoded
+one_hot_columns = ['Country', 'PaymentMethod', ...]  # List of columns for one-hot encoding
+binary_columns = ['City', 'Category', ...]  # List of columns for binary encoding
+
+# Perform one-hot encoding on specified columns for both training and test data
+one_hot_encoder = OneHotEncoder(sparse=False, drop='first')
+X_train_one_hot_encoded = one_hot_encoder.fit_transform(X_train[one_hot_columns])
+X_test_one_hot_encoded = one_hot_encoder.transform(X_test[one_hot_columns])
+
+# Perform binary encoding on specified columns for both training and test data
+binary_encoder = BinaryEncoder(cols=binary_columns)
+X_train_binary_encoded = binary_encoder.fit_transform(X_train[binary_columns])
+X_test_binary_encoded = binary_encoder.transform(X_test[binary_columns])
+
+# Combine the one-hot and binary encoded features with the remaining columns for training and test data
+X_train_encoded = pd.concat([X_train.drop(one_hot_columns + binary_columns, axis=1), pd.DataFrame(X_train_one_hot_encoded), pd.DataFrame(X_train_binary_encoded)], axis=1)
+X_test_encoded = pd.concat([X_test.drop(one_hot_columns + binary_columns, axis=1), pd.DataFrame(X_test_one_hot_encoded), pd.DataFrame(X_test_binary_encoded)], axis=1)
+
+# Standardize numerical features (assuming only numeric features are standardized)
+numeric_features = X_train_encoded.select_dtypes(include=[np.number])
+scaler = StandardScaler()
+X_train_encoded[numeric_features.columns] = scaler.fit_transform(X_train_encoded[numeric_features.columns])
+X_test_encoded[numeric_features.columns] = scaler.transform(X_test_encoded[numeric_features.columns])
+
+# Build a simple feed-forward neural network
+model = keras.Sequential([
+    keras.layers.Dense(units=16, activation='relu', input_shape=(X_train_encoded.shape[1],)),
+    keras.layers.Dense(units=8, activation='relu'),
+    keras.layers.Dense(units=1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the model on training data
+model.fit(X_train_encoded, y_train, epochs=10, batch_size=64, validation_split=0.2)
+
+# Evaluate the model on test data
+y_pred = model.predict(X_test_encoded)
+y_pred_binary = (y_pred > 0.5).astype(int)  # Convert probabilities to binary labels
+
+# Print classification report for test data
+print(classification_report(y_test, y_pred_binary))
