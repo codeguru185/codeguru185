@@ -1,31 +1,33 @@
-#!/bin/bash
+import os
+import shutil
+from datetime import datetime, timedelta
 
-# Hive connection details
-HIVE_HOST="your_hive_host"
-HIVE_PORT="your_hive_port"
-HIVE_USER="your_hive_user"
-HIVE_PASSWORD="your_hive_password"
-
-# Hive query to get databases
-DATABASES=$(beeline -u "jdbc:hive2://$HIVE_HOST:$HIVE_PORT" -n "$HIVE_USER" -p "$HIVE_PASSWORD" -e "SHOW DATABASES;")
-
-# Iterate through each database
-for DB in $DATABASES; do
-    echo "Database: $DB"
+def delete_old_directories(input_directory, threshold_months):
+    # Get current date
+    current_date = datetime.now()
     
-    # Hive query to get tables in the current database
-    TABLES=$(beeline -u "jdbc:hive2://$HIVE_HOST:$HIVE_PORT/$DB" -n "$HIVE_USER" -p "$HIVE_PASSWORD" -e "SHOW TABLES;")
+    # Calculate the date threshold
+    threshold_date = current_date - timedelta(days=threshold_months * 30)
 
-    # Iterate through each table in the current database
-    for TABLE in $TABLES; do
-        # Hive query to get table size and creator
-        TABLE_INFO=$(beeline -u "jdbc:hive2://$HIVE_HOST:$HIVE_PORT/$DB" -n "$HIVE_USER" -p "$HIVE_PASSWORD" -e "DESCRIBE EXTENDED $TABLE;")
+    # Loop through subdirectories in the input directory
+    for root, dirs, files in os.walk(input_directory, topdown=False):
+        for directory in dirs:
+            try:
+                # Convert directory name to datetime object
+                directory_date = datetime.strptime(directory, '%Y-%m-%d')
+                
+                # Check if directory is older than threshold
+                if directory_date < threshold_date:
+                    # Delete the entire subdirectory
+                    shutil.rmtree(os.path.join(root, directory))
+                    print(f"Deleted: {os.path.join(root, directory)}")
+            except ValueError:
+                # Directory name does not match the expected format, skip
+                pass
 
-        # Extracting size and creator from the table information
-        TABLE_SIZE=$(echo "$TABLE_INFO" | grep "totalSize" | awk '{print $2}')
-        TABLE_CREATOR=$(echo "$TABLE_INFO" | grep "Owner:" | awk '{print $2}')
+# Example usage:
+input_paths = ["/path/to/directory1", "/path/to/directory2"]  # List of input paths
+threshold_months = 6  # Threshold number of months
 
-        # Print the details
-        echo "  Table: $TABLE | Size: $TABLE_SIZE | Created by: $TABLE_CREATOR"
-    done
-done
+for input_directory in input_paths:
+    delete_old_directories(input_directory, threshold_months)
