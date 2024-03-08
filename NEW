@@ -1,33 +1,33 @@
 import os
-import shutil
-from datetime import datetime, timedelta
+import logging
+from logging.handlers import TimedRotatingFileHandler
+from airflow.logging_config import configure_logging
 
-def delete_old_directories(input_directory, threshold_months):
-    # Get current date
-    current_date = datetime.now()
-    
-    # Calculate the date threshold
-    threshold_date = current_date - timedelta(days=threshold_months * 30)
+class CustomLoggingConfigurator(configure_logging):
+    def configure(self):
+        super().configure()
 
-    # Loop through subdirectories in the input directory
-    for root, dirs, files in os.walk(input_directory, topdown=False):
-        for directory in dirs:
-            try:
-                # Convert directory name to datetime object
-                directory_date = datetime.strptime(directory, '%Y-%m-%d')
-                
-                # Check if directory is older than threshold
-                if directory_date < threshold_date:
-                    # Delete the entire subdirectory
-                    shutil.rmtree(os.path.join(root, directory))
-                    print(f"Deleted: {os.path.join(root, directory)}")
-            except ValueError:
-                # Directory name does not match the expected format, skip
-                pass
+        # Get the root logger
+        root_logger = logging.getLogger()
 
-# Example usage:
-input_paths = ["/path/to/directory1", "/path/to/directory2"]  # List of input paths
-threshold_months = 6  # Threshold number of months
+        # Remove any existing handlers to avoid duplicate logs
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
 
-for input_directory in input_paths:
-    delete_old_directories(input_directory, threshold_months)
+        # Path to the scheduler logs directory
+        scheduler_logs_dir = '/path/to/scheduler/logs'
+
+        # Iterate over subdirectories in the scheduler logs directory
+        for subdir in os.listdir(scheduler_logs_dir):
+            subdir_path = os.path.join(scheduler_logs_dir, subdir)
+            if os.path.isdir(subdir_path):
+                # Create a TimedRotatingFileHandler for scheduler logs in this subdirectory
+                log_file = os.path.join(subdir_path, 'scheduler.log')
+                rotating_handler = TimedRotatingFileHandler(log_file, when='midnight', backupCount=7)
+
+                # Set log rotation parameters
+                rotating_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+                rotating_handler.setLevel(logging.INFO)
+
+                # Add the rotating handler to the root logger
+                root_logger.addHandler(rotating_handler)
