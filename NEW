@@ -1,33 +1,37 @@
-import os
-import logging
-from logging.handlers import TimedRotatingFileHandler
-from airflow.logging_config import configure_logging
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, countDistinct, count
 
-class CustomLoggingConfigurator(configure_logging):
-    def configure(self):
-        super().configure()
+# Initialize Spark session
+spark = SparkSession.builder.appName("UniqueValueCount").getOrCreate()
 
-        # Get the root logger
-        root_logger = logging.getLogger()
+# Sample data
+data = [
+    (1,), (2,), (2,), (3,), (3,), (3,),
+    (4,), (4,), (4,), (4,), (5,), (5,),
+    (5,), (5,), (5,)
+]
 
-        # Remove any existing handlers to avoid duplicate logs
-        for handler in root_logger.handlers[:]:
-            root_logger.removeHandler(handler)
+# Create DataFrame
+df = spark.createDataFrame(data, ["Column1"])
 
-        # Path to the scheduler logs directory
-        scheduler_logs_dir = '/path/to/scheduler/logs'
+# Function to print unique value counts and values if count is less than 10
+def print_unique_values_or_count(df, column):
+    # Count distinct values
+    distinct_count = df.select(countDistinct(col(column))).collect()[0][0]
+    
+    if distinct_count < 10:
+        # Get unique values and their counts
+        unique_values_df = df.groupBy(column).count()
+        unique_values = unique_values_df.collect()
+        
+        print(f"Unique values in column '{column}':")
+        for row in unique_values:
+            print(f"{row[column]}: {row['count']}")
+    else:
+        print(f"Unique count in column '{column}': {distinct_count}")
 
-        # Iterate over subdirectories in the scheduler logs directory
-        for subdir in os.listdir(scheduler_logs_dir):
-            subdir_path = os.path.join(scheduler_logs_dir, subdir)
-            if os.path.isdir(subdir_path):
-                # Create a TimedRotatingFileHandler for scheduler logs in this subdirectory
-                log_file = os.path.join(subdir_path, 'scheduler.log')
-                rotating_handler = TimedRotatingFileHandler(log_file, when='midnight', backupCount=7)
+# Call the function for the specified column
+print_unique_values_or_count(df, 'Column1')
 
-                # Set log rotation parameters
-                rotating_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-                rotating_handler.setLevel(logging.INFO)
-
-                # Add the rotating handler to the root logger
-                root_logger.addHandler(rotating_handler)
+# Stop Spark session
+spark.stop()
