@@ -1,24 +1,12 @@
-sources:
-  - source_type: file
-    details:
-      path: /path/to/file
-      file_name: example_file.csv
-  - source_type: db
-    details:
-      db_type: postgres
-      server_name: db_server
-      database_name: example_db
-      user: db_user
-      password: db_password
-      schemas:
-        - schema_name: public
-          tables:
-            - table_name: users
-              columns: '*'
-            - table_name: orders
-              columns: '*'
-            - table_name: products
-              columns:
-                - product_id
-                - product_name
-                - price
+{
+  "pii_patterns": {
+    "ssn": [
+      "\\b\\d{3}-\\d{2}-\\d{4}\\b",  // Matches SSNs in the format 123-45-6789
+      "\\b\\d{3} \\d{2} \\d{4}\\b",  // Matches SSNs in the format 123 45 6789
+      "\\b\\d{9}\\b"                 // Matches SSNs in the format 123456789
+    ],
+    "email": [
+      "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"  // Matches standard email addresses
+    ]
+  }
+}
