@@ -1,37 +1,24 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, countDistinct, count
-
-# Initialize Spark session
-spark = SparkSession.builder.appName("UniqueValueCount").getOrCreate()
-
-# Sample data
-data = [
-    (1,), (2,), (2,), (3,), (3,), (3,),
-    (4,), (4,), (4,), (4,), (5,), (5,),
-    (5,), (5,), (5,)
-]
-
-# Create DataFrame
-df = spark.createDataFrame(data, ["Column1"])
-
-# Function to print unique value counts and values if count is less than 10
-def print_unique_values_or_count(df, column):
-    # Count distinct values
-    distinct_count = df.select(countDistinct(col(column))).collect()[0][0]
-    
-    if distinct_count < 10:
-        # Get unique values and their counts
-        unique_values_df = df.groupBy(column).count()
-        unique_values = unique_values_df.collect()
-        
-        print(f"Unique values in column '{column}':")
-        for row in unique_values:
-            print(f"{row[column]}: {row['count']}")
-    else:
-        print(f"Unique count in column '{column}': {distinct_count}")
-
-# Call the function for the specified column
-print_unique_values_or_count(df, 'Column1')
-
-# Stop Spark session
-spark.stop()
+sources:
+  - source_type: file
+    details:
+      path: /path/to/file
+      file_name: example_file.csv
+  - source_type: db
+    details:
+      db_type: postgres
+      server_name: db_server
+      database_name: example_db
+      user: db_user
+      password: db_password
+      schemas:
+        - schema_name: public
+          tables:
+            - table_name: users
+              columns: '*'
+            - table_name: orders
+              columns: '*'
+            - table_name: products
+              columns:
+                - product_id
+                - product_name
+                - price
