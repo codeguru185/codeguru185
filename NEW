@@ -1,12 +1,7 @@
-{
-  "pii_patterns": {
-    "ssn": [
-      "\\b\\d{3}-\\d{2}-\\d{4}\\b",  // Matches SSNs in the format 123-45-6789
-      "\\b\\d{3} \\d{2} \\d{4}\\b",  // Matches SSNs in the format 123 45 6789
-      "\\b\\d{9}\\b"                 // Matches SSNs in the format 123456789
-    ],
-    "email": [
-      "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"  // Matches standard email addresses
-    ]
-  }
-}
+pii_patterns:
+  ssn:
+    - "\\b\\d{3}-\\d{2}-\\d{4}\\b"  # Matches SSNs in the format 123-45-6789
+    - "\\b\\d{3} \\d{2} \\d{4}\\b"  # Matches SSNs in the format 123 45 6789
+    - "\\b\\d{9}\\b"                # Matches SSNs in the format 123456789
+  email:
+    - "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"  # Matches standard email addresses
