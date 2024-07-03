@@ -1,7 +1,62 @@
-pii_patterns:
-  ssn:
-    - "\\b\\d{3}-\\d{2}-\\d{4}\\b"  # Matches SSNs in the format 123-45-6789
-    - "\\b\\d{3} \\d{2} \\d{4}\\b"  # Matches SSNs in the format 123 45 6789
-    - "\\b\\d{9}\\b"                # Matches SSNs in the format 123456789
-  email:
-    - "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"  # Matches standard email addresses
+sources:
+  - source_type: file
+    details:
+      path: /path/to/file
+      file_name: example_file.csv
+  - source_type: db
+    details:
+      db_type: postgres
+      server_name: db_server
+      database_name: example_db
+      user: db_user
+      password: db_password
+      include_schemas:
+        - public
+        - sales
+      exclude_schemas:
+        - archive
+      include_schema_patterns:
+        - "^prod_.*"
+      exclude_schema_patterns:
+        - "^tmp_.*"
+      include_tables:
+        - users
+        - orders
+      exclude_tables:
+        - temp_data
+      include_table_patterns:
+        - "^active_.*"
+      exclude_table_patterns:
+        - "^backup_.*"
+      scan_type: full  # options: full, incremental
+      randomize_sample:
+        enabled: true
+        percentage: 10
+        row_count: 1000
+      schemas:
+        - schema_name: public
+          tables:
+            - table_name: users
+              columns: '*'
+              scan_type: full
+              randomize_sample:
+                enabled: false
+                percentage: 0
+                row_count: 0
+            - table_name: orders
+              columns: '*'
+              scan_type: incremental
+              randomize_sample:
+                enabled: true
+                percentage: 5
+                row_count: 500
+            - table_name: products
+              columns:
+                - product_id
+                - product_name
+                - price
+              scan_type: full
+              randomize_sample:
+                enabled: false
+                percentage: 0
+                row_count: 0
