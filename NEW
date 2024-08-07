@@ -1,62 +1,58 @@
-sources:
-  - source_type: file
-    details:
-      path: /path/to/file
-      file_name: example_file.csv
-  - source_type: db
-    details:
-      db_type: postgres
-      server_name: db_server
-      database_name: example_db
-      user: db_user
-      password: db_password
-      include_schemas:
-        - public
-        - sales
-      exclude_schemas:
-        - archive
-      include_schema_patterns:
-        - "^prod_.*"
-      exclude_schema_patterns:
-        - "^tmp_.*"
-      include_tables:
-        - users
-        - orders
-      exclude_tables:
-        - temp_data
-      include_table_patterns:
-        - "^active_.*"
-      exclude_table_patterns:
-        - "^backup_.*"
-      scan_type: full  # options: full, incremental
-      randomize_sample:
-        enabled: true
-        percentage: 10
-        row_count: 1000
-      schemas:
-        - schema_name: public
-          tables:
-            - table_name: users
-              columns: '*'
-              scan_type: full
-              randomize_sample:
-                enabled: false
-                percentage: 0
-                row_count: 0
-            - table_name: orders
-              columns: '*'
-              scan_type: incremental
-              randomize_sample:
-                enabled: true
-                percentage: 5
-                row_count: 500
-            - table_name: products
-              columns:
-                - product_id
-                - product_name
-                - price
-              scan_type: full
-              randomize_sample:
-                enabled: false
-                percentage: 0
-                row_count: 0
+CREATE TABLE us_state_abbreviations (
+    state_name VARCHAR(50) NOT NULL,
+    state_abbreviation CHAR(2) NOT NULL,
+    PRIMARY KEY (state_abbreviation)
+);
+
+
+INSERT INTO us_state_abbreviations (state_name, state_abbreviation) VALUES
+('Alabama', 'AL'),
+('Alaska', 'AK'),
+('Arizona', 'AZ'),
+('Arkansas', 'AR'),
+('California', 'CA'),
+('Colorado', 'CO'),
+('Connecticut', 'CT'),
+('Delaware', 'DE'),
+('Florida', 'FL'),
+('Georgia', 'GA'),
+('Hawaii', 'HI'),
+('Idaho', 'ID'),
+('Illinois', 'IL'),
+('Indiana', 'IN'),
+('Iowa', 'IA'),
+('Kansas', 'KS'),
+('Kentucky', 'KY'),
+('Louisiana', 'LA'),
+('Maine', 'ME'),
+('Maryland', 'MD'),
+('Massachusetts', 'MA'),
+('Michigan', 'MI'),
+('Minnesota', 'MN'),
+('Mississippi', 'MS'),
+('Missouri', 'MO'),
+('Montana', 'MT'),
+('Nebraska', 'NE'),
+('Nevada', 'NV'),
+('New Hampshire', 'NH'),
+('New Jersey', 'NJ'),
+('New Mexico', 'NM'),
+('New York', 'NY'),
+('North Carolina', 'NC'),
+('North Dakota', 'ND'),
+('Ohio', 'OH'),
+('Oklahoma', 'OK'),
+('Oregon', 'OR'),
+('Pennsylvania', 'PA'),
+('Rhode Island', 'RI'),
+('South Carolina', 'SC'),
+('South Dakota', 'SD'),
+('Tennessee', 'TN'),
+('Texas', 'TX'),
+('Utah', 'UT'),
+('Vermont', 'VT'),
+('Virginia', 'VA'),
+('Washington', 'WA'),
+('West Virginia', 'WV'),
+('Wisconsin', 'WI'),
+('Wyoming', 'WY');
