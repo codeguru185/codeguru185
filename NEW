@@ -1,37 +1,35 @@
 -- Step 1: Identify all databases, including shared databases
 WITH databases AS (
     SELECT
-        catalog_name AS database_name,
+        database_name,
         CASE
-            WHEN catalog_name LIKE 'SNOWFLAKE%' THEN 'MANAGED DATABASE'
-            WHEN catalog_name LIKE '%_SHARE' THEN 'SHARED DATABASE'
+            WHEN database_name LIKE 'SNOWFLAKE%' THEN 'MANAGED DATABASE'
+            WHEN database_name LIKE '%_SHARE' THEN 'SHARED DATABASE'
             ELSE 'REGULAR DATABASE'
         END AS database_type
     FROM
-        information_schema.catalogs
+        snowflake.account_usage.databases
     WHERE
-        catalog_name NOT IN ('INFORMATION_SCHEMA', 'SNOWFLAKE')
+        deleted IS NULL
 ),
 
 -- Step 2: Retrieve schema details for each database, excluding public schemas
 schemas AS (
     SELECT
-        c.catalog_name AS database_name,
-        s.schema_name,
-        s.is_transient,
+        database_name,
+        schema_name,
+        is_transient,
         CASE
-            WHEN s.schema_name LIKE '%SENSITIVE%' THEN 'SENSITIVE DATA'
+            WHEN schema_name LIKE '%SENSITIVE%' THEN 'SENSITIVE DATA'
             ELSE 'REGULAR DATA'
         END AS schema_sensitivity,
-        s.created,
-        s.last_altered
+        created,
+        last_altered
     FROM
-        databases c
-    JOIN
-        information_schema.schemata s
-        ON c.catalog_name = s.catalog_name
+        snowflake.account_usage.schemas
     WHERE
-        s.schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
+        deleted IS NULL
+        AND schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
 )
 
 -- Step 3: Combine results with enhanced marking
