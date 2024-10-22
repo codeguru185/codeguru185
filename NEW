@@ -1,38 +1,61 @@
--- Step 1: Identify all databases
+-- Step 1: Identify all databases, including shared databases
 WITH databases AS (
     SELECT
-        catalog_name AS database_name
+        catalog_name AS database_name,
+        CASE
+            WHEN catalog_name LIKE 'SNOWFLAKE%' THEN 'MANAGED DATABASE'
+            WHEN catalog_name LIKE '%_SHARE' THEN 'SHARED DATABASE'
+            ELSE 'REGULAR DATABASE'
+        END AS database_type
     FROM
         information_schema.catalogs
     WHERE
         catalog_name NOT IN ('INFORMATION_SCHEMA', 'SNOWFLAKE')
 ),
 
--- Step 2: Retrieve schema details for each database
+-- Step 2: Retrieve schema details for each database, excluding public schemas
 schemas AS (
     SELECT
         c.catalog_name AS database_name,
         s.schema_name,
         s.is_transient,
+        CASE
+            WHEN s.schema_name LIKE '%SENSITIVE%' THEN 'SENSITIVE DATA'
+            ELSE 'REGULAR DATA'
+        END AS schema_sensitivity,
         s.created,
         s.last_altered
     FROM
         databases c
     JOIN
-        information_schema.schemata s ON c.catalog_name = s.catalog_name
+        information_schema.schemata s
+        ON c.catalog_name = s.catalog_name
     WHERE
         s.schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
 )
 
--- Step 3: Combine results
+-- Step 3: Combine results with enhanced marking
 SELECT
-    database_name,
-    schema_name,
-    is_transient,
-    created,
-    last_altered
+    d.database_name,
+    d.database_type,
+    s.schema_name,
+    CASE
+        WHEN s.is_transient = 'YES' THEN 'TRANSIENT SCHEMA'
+        ELSE 'PERMANENT SCHEMA'
+    END AS schema_type,
+    s.schema_sensitivity,
+    s.created,
+    s.last_altered,
+    CASE
+        WHEN d.database_type = 'SHARED DATABASE' THEN 'EXTERNAL ACCESS'
+        WHEN d.database_type = 'MANAGED DATABASE' THEN 'SYSTEM MANAGED'
+        ELSE 'INTERNAL ACCESS'
+    END AS access_type
 FROM
-    schemas
+    databases d
+JOIN
+    schemas s
+    ON d.database_name = s.database_name
 ORDER BY
-    database_name,
-    schema_name;
+    d.database_name,
+    s.schema_name;
