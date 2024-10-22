@@ -1,18 +1,28 @@
-SELECT 
-    db.database_name,
-    CASE 
-        WHEN db.database_name LIKE '%_SHARE' THEN 'SHARED DATABASE'
+-- Step 1: Identify all databases and their schemas
+WITH database_schemas AS (
+    SELECT
+        c.catalog_name AS database_name,
+        s.schema_name
+    FROM
+        information_schema.catalogs c
+    JOIN
+        information_schema.schemata s ON c.catalog_name = s.catalog_name
+    WHERE
+        s.schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
+)
+
+-- Step 2: Identify shared databases
+SELECT
+    ds.database_name,
+    CASE
+        WHEN c.is_shared = 'YES' THEN 'SHARED DATABASE'
         ELSE 'REGULAR DATABASE'
     END AS database_type,
-    s.schema_name
-FROM 
-    snowflake.account_usage.databases db
-JOIN 
-    snowflake.account_usage.schemas s
-    ON db.database_name = s.database_name
-WHERE 
-    s.deleted IS NULL
-    AND db.deleted IS NULL
-    AND s.schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
-ORDER BY 
-    db.database_name, s.schema_name;
+    ds.schema_name
+FROM
+    database_schemas ds
+JOIN
+    information_schema.catalogs c ON ds.database_name = c.catalog_name
+ORDER BY
+    ds.database_name,
+    ds.schema_name;
