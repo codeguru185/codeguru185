@@ -1,59 +1,18 @@
--- Step 1: Identify all databases, including shared databases
-WITH databases AS (
-    SELECT
-        database_name,
-        CASE
-            WHEN database_name LIKE 'SNOWFLAKE%' THEN 'MANAGED DATABASE'
-            WHEN database_name LIKE '%_SHARE' THEN 'SHARED DATABASE'
-            ELSE 'REGULAR DATABASE'
-        END AS database_type
-    FROM
-        snowflake.account_usage.databases
-    WHERE
-        deleted IS NULL
-),
-
--- Step 2: Retrieve schema details for each database, excluding public schemas
-schemas AS (
-    SELECT
-        database_name,
-        schema_name,
-        is_transient,
-        CASE
-            WHEN schema_name LIKE '%SENSITIVE%' THEN 'SENSITIVE DATA'
-            ELSE 'REGULAR DATA'
-        END AS schema_sensitivity,
-        created,
-        last_altered
-    FROM
-        snowflake.account_usage.schemas
-    WHERE
-        deleted IS NULL
-        AND schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
-)
-
--- Step 3: Combine results with enhanced marking
-SELECT
-    d.database_name,
-    d.database_type,
-    s.schema_name,
-    CASE
-        WHEN s.is_transient = 'YES' THEN 'TRANSIENT SCHEMA'
-        ELSE 'PERMANENT SCHEMA'
-    END AS schema_type,
-    s.schema_sensitivity,
-    s.created,
-    s.last_altered,
-    CASE
-        WHEN d.database_type = 'SHARED DATABASE' THEN 'EXTERNAL ACCESS'
-        WHEN d.database_type = 'MANAGED DATABASE' THEN 'SYSTEM MANAGED'
-        ELSE 'INTERNAL ACCESS'
-    END AS access_type
-FROM
-    databases d
-JOIN
-    schemas s
-    ON d.database_name = s.database_name
-ORDER BY
-    d.database_name,
-    s.schema_name;
+SELECT 
+    db.database_name,
+    CASE 
+        WHEN db.database_name LIKE '%_SHARE' THEN 'SHARED DATABASE'
+        ELSE 'REGULAR DATABASE'
+    END AS database_type,
+    s.schema_name
+FROM 
+    snowflake.account_usage.databases db
+JOIN 
+    snowflake.account_usage.schemas s
+    ON db.database_name = s.database_name
+WHERE 
+    s.deleted IS NULL
+    AND db.deleted IS NULL
+    AND s.schema_name != 'PUBLIC'  -- Exclude PUBLIC schema
+ORDER BY 
+    db.database_name, s.schema_name;
