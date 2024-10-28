@@ -12,21 +12,20 @@ metadata.reflect()
 
 fake = Faker()
 
-# Define the number of rows you want to insert per table
-ROWS_PER_TABLE = {
+# Define the specific tables and the number of rows you want to insert per table
+TARGET_TABLES = {
     'table1': 100,
     'table2': 50,
-    'table3': 150  # Add more tables and row counts as needed
+    'table3': 150  # Add your target tables and row counts here
 }
 
-# Insert data with respect to foreign key dependencies
+# Insert data only for tables in TARGET_TABLES and respect foreign key dependencies
 for table in metadata.sorted_tables:
-    # Skip tables if not in the ROWS_PER_TABLE dictionary
-    if table.name not in ROWS_PER_TABLE:
+    # Process only the tables specified in TARGET_TABLES
+    if table.name not in TARGET_TABLES:
         continue
 
-    # Number of rows to insert for the current table
-    num_rows = ROWS_PER_TABLE[table.name]
+    num_rows = TARGET_TABLES[table.name]
 
     print(f"Inserting {num_rows} rows into {table.name}...")
 
@@ -36,7 +35,7 @@ for table in metadata.sorted_tables:
         
         for column in table.columns:
             if column.foreign_keys:
-                # If foreign key, get a random existing foreign key ID from the referenced table
+                # Handle foreign key by picking an existing ID from the referenced table
                 fk_column = list(column.foreign_keys)[0].column
                 fk_table = fk_column.table
                 fk_id = session.query(fk_column).order_by(fk_column).limit(1).offset(randint(0, num_rows-1)).scalar()
@@ -44,18 +43,4 @@ for table in metadata.sorted_tables:
             elif column.type.python_type == str:
                 row_data[column.name] = fake.word() if not column.primary_key else None  # Avoid primary key conflicts
             elif column.type.python_type == int:
-                row_data[column.name] = randint(1, 100)
-            elif column.type.python_type == float:
-                row_data[column.name] = fake.pyfloat(left_digits=2, right_digits=2, positive=True)
-            elif column.type.python_type == bool:
-                row_data[column.name] = fake.boolean()
-            # Add other type cases as necessary
-
-        # Insert the row data into the table, skip if primary key data is missing
-        if all(row_data[key] is not None for key in row_data.keys() if key in table.primary_key.columns):
-            session.execute(table.insert().values(**row_data))
-
-    # Commit after each table's insertions to keep changes isolated
-    session.commit()
-
-print("Data insertion complete!")
+               
