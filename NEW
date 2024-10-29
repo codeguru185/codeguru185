@@ -1,46 +1,163 @@
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import sessionmaker
-from faker import Faker
-from random import randint
+import streamlit as st
+import psycopg2
+import pandas as pd
 
-# Set up the database connection and session
-engine = create_engine("postgresql+psycopg2://user:password@host/dbname")
-Session = sessionmaker(bind=engine)
-session = Session()
-metadata = MetaData(bind=engine)
-metadata.reflect()
+# Database connection setup
+def get_connection():
+    return psycopg2.connect(
+        host='your_host',
+        database='your_database',
+        user='your_user',
+        password='your_password'
+    )
 
-fake = Faker()
+# Function to fetch table metadata
+def fetch_table_metadata(schema, table):
+    query = f"""
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_schema = '{schema}' AND table_name = '{table}';
+    """
+    conn = get_connection()
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
 
-# Define the specific tables and the number of rows you want to insert per table
-TARGET_TABLES = {
-    'table1': 100,
-    'table2': 50,
-    'table3': 150  # Add your target tables and row counts here
-}
+# Reusable function for CRUD interface
+def render_crud_interface(schema, table):
+    st.header(f"CRUD Operations for {schema}.{table}")
 
-# Insert data only for tables in TARGET_TABLES and respect foreign key dependencies
-for table in metadata.sorted_tables:
-    # Process only the tables specified in TARGET_TABLES
-    if table.name not in TARGET_TABLES:
-        continue
+    # Fetch metadata
+    metadata = fetch_table_metadata(schema, table)
+    st.write("Table Columns:")
+    st.dataframe(metadata)
 
-    num_rows = TARGET_TABLES[table.name]
+    # Create tabs for CRUD
+    tabs = st.tabs(["Create", "Read", "Update", "Delete"])
 
-    print(f"Inserting {num_rows} rows into {table.name}...")
+    with tabs[0]:  # Create tab
+        st.subheader(f"Create New Record in {table}")
+        create_form(metadata, schema, table)
 
-    # Generate and insert the rows
-    for _ in range(num_rows):
-        row_data = {}
-        
-        for column in table.columns:
-            if column.foreign_keys:
-                # Handle foreign key by picking an existing ID from the referenced table
-                fk_column = list(column.foreign_keys)[0].column
-                fk_table = fk_column.table
-                fk_id = session.query(fk_column).order_by(fk_column).limit(1).offset(randint(0, num_rows-1)).scalar()
-                row_data[column.name] = fk_id
-            elif column.type.python_type == str:
-                row_data[column.name] = fake.word() if not column.primary_key else None  # Avoid primary key conflicts
-            elif column.type.python_type == int:
-               
+    with tabs[1]:  # Read tab
+        st.subheader(f"Read Records from {table}")
+        read_records(schema, table)
+
+    with tabs[2]:  # Update tab
+        st.subheader(f"Update Existing Record in {table}")
+        update_form(metadata, schema, table)
+
+    with tabs[3]:  # Delete tab
+        st.subheader(f"Delete Record from {table}")
+        delete_form(schema, table)
+
+# Function to create a form for adding a new record
+def create_form(metadata, schema, table):
+    inputs = {}
+    for _, row in metadata.iterrows():
+        column = row['column_name']
+        data_type = row['data_type']
+
+        if data_type in ['integer', 'bigint']:
+            inputs[column] = st.number_input(f"Enter {column}:", step=1)
+        elif data_type in ['character varying', 'text']:
+            inputs[column] = st.text_input(f"Enter {column}:")
+        else:
+            inputs[column] = st.text_input(f"Enter {column}:")
+
+    if st.button(f"Add Record to {table}"):
+        add_record(schema, table, inputs)
+
+# Function to add a record to the table
+def add_record(schema, table, inputs):
+    conn = get_connection()
+    cursor = conn.cursor()
+    columns = ', '.join(inputs.keys())
+    values = ', '.join(['%s'] * len(inputs))
+    query = f"INSERT INTO {schema}.{table} ({columns}) VALUES ({values});"
+    
+    try:
+        cursor.execute(query, list(inputs.values()))
+        conn.commit()
+        st.success("Record added successfully!")
+    except Exception as e:
+        st.error(f"Failed to add record: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Function to display existing records
+def read_records(schema, table):
+    conn = get_connection()
+    query = f"SELECT * FROM {schema}.{table} LIMIT 10;"  # Show top 10 rows
+    df = pd.read_sql(query, conn)
+    conn.close()
+    st.dataframe(df)
+
+# Function to create an update form
+def update_form(metadata, schema, table):
+    # Display ID input for the record to be updated
+    record_id = st.number_input("Enter ID of the record to update:", step=1)
+    inputs = {}
+
+    for _, row in metadata.iterrows():
+        column = row['column_name']
+        data_type = row['data_type']
+
+        if data_type in ['integer', 'bigint']:
+            inputs[column] = st.number_input(f"Update {column}:", step=1)
+        elif data_type in ['character varying', 'text']:
+            inputs[column] = st.text_input(f"Update {column}:")
+        else:
+            inputs[column] = st.text_input(f"Update {column}:")
+
+    if st.button(f"Update Record in {table}"):
+        update_record(schema, table, record_id, inputs)
+
+# Function to update a record in the table
+def update_record(schema, table, record_id, inputs):
+    conn = get_connection()
+    cursor = conn.cursor()
+    set_clause = ', '.join([f"{col} = %s" for col in inputs])
+    query = f"UPDATE {schema}.{table} SET {set_clause} WHERE id = %s;"
+    
+    try:
+        cursor.execute(query, list(inputs.values()) + [record_id])
+        conn.commit()
+        st.success("Record updated successfully!")
+    except Exception as e:
+        st.error(f"Failed to update record: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Function to create a delete form
+def delete_form(schema, table):
+    record_id = st.number_input(f"Enter ID of the record to delete from {table}:", step=1)
+    
+    if st.button(f"Delete Record from {table}"):
+        delete_record(schema, table, record_id)
+
+# Function to delete a record from the table
+def delete_record(schema, table, record_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = f"DELETE FROM {schema}.{table} WHERE id = %s;"
+
+    try:
+        cursor.execute(query, (record_id,))
+        conn.commit()
+        st.success("Record deleted successfully!")
+    except Exception as e:
+        st.error(f"Failed to delete record: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Streamlit UI
+st.title("PostgreSQL Table CRUD Interface")
+schema_name = st.text_input("Enter Schema Name:")
+table_name = st.text_input("Enter Table Name:")
+
+if schema_name and table_name:
+    render_crud_interface(schema_name, table_name)
